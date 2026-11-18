@@ -1,0 +1,70 @@
+# %% [markdown]
+# # Practical 6: LSTM for Text Classification (IMDB)
+
+# %%
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+from sklearn.model_selection import train_test_split
+
+# %%
+df = pd.read_csv(f'{DATA}/IMDB Dataset.csv')
+texts = df['review'].str.replace(r'<br\s*/?>', ' ', regex=True).to_numpy()
+labels = (df['sentiment'] == 'positive').astype(int).to_numpy()
+
+x_train, x_test, y_train, y_test = train_test_split(texts, labels, test_size=0.2, random_state=42)
+
+# %%
+vectorizer = layers.TextVectorization(max_tokens=20000, output_sequence_length=250)
+vectorizer.adapt(tf.constant(list(x_train)))
+
+
+def encode(texts):
+    return vectorizer(tf.constant(list(texts))).numpy()
+
+
+s_train, s_test = encode(x_train), encode(x_test)
+
+# %%
+model = keras.Sequential([
+    keras.Input(shape=(250,), dtype='int32'),
+    layers.Embedding(20000, 128, mask_zero=True),
+    layers.LSTM(64),
+    layers.Dropout(0.5),
+    layers.Dense(1, activation='sigmoid'),
+])
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.summary()
+
+history = model.fit(s_train, y_train, validation_split=0.1, epochs=5, batch_size=128)
+
+# %%
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+for ax, key in zip(axes, ['accuracy', 'loss']):
+    ax.plot(history.history[key], label='train')
+    ax.plot(history.history['val_' + key], label='validation')
+    ax.set_title(key)
+    ax.set_xlabel('epoch')
+    ax.legend()
+plt.show()
+
+test_loss, test_acc = model.evaluate(s_test, y_test, verbose=0)
+print('Test accuracy:', test_acc)
+
+# %%
+probs = model.predict(s_test[:10], verbose=0).ravel()
+for text, prob, true in zip(x_test[:10], probs, y_test[:10]):
+    predicted = 'positive' if prob >= 0.5 else 'negative'
+    actual = 'positive' if true == 1 else 'negative'
+    print(f'{prob:.2f}  predicted: {predicted:8s}  actual: {actual:8s}  {text[:80]}...')
+
+# %%
+my_reviews = [
+    'This movie was absolutely wonderful, the acting was brilliant.',
+    'A complete waste of time. Boring and badly acted.',
+]
+for text, prob in zip(my_reviews, model.predict(encode(my_reviews), verbose=0).ravel()):
+    print(f'{prob:.2f}  {"positive" if prob >= 0.5 else "negative"}  {text}')

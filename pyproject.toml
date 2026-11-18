@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dlpracticals"
-version = "1.0.0"
+version = "1.1.0"
 description = "Deep learning practicals 1-8: perceptron, MLP, regularization, activations, CNN, LSTM, transfer learning, hyperparameter tuning (TensorFlow/Keras)."
 requires-python = ">=3.9"
 dependencies = [
@@ -17,3 +17,6 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+dlpracticals = ["templates/*.txt"]

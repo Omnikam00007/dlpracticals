@@ -1,0 +1,62 @@
+# %% [markdown]
+# # Practical 2: Feedforward Neural Network (MLP) on Fashion-MNIST
+
+# %%
+import pandas as pd
+import matplotlib.pyplot as plt
+from tensorflow import keras
+from tensorflow.keras import layers
+
+# %%
+train_df = pd.read_csv(f'{DATA}/fashion-mnist_train.csv')
+test_df = pd.read_csv(f'{DATA}/fashion-mnist_test.csv')
+
+x = train_df.iloc[:, 1:].to_numpy('float32') / 255
+y = train_df.iloc[:, 0].to_numpy()
+x_test = test_df.iloc[:, 1:].to_numpy('float32') / 255
+y_test = test_df.iloc[:, 0].to_numpy()
+
+x_tr, x_val = x[:50000], x[50000:]
+y_tr, y_val = y[:50000], y[50000:]
+
+# %%
+def build_mlp(hidden_units, activation):
+    model = keras.Sequential([keras.Input(shape=(784,))])
+    for units in hidden_units:
+        model.add(layers.Dense(units, activation=activation))
+    model.add(layers.Dense(10, activation='softmax'))
+    model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+    return model
+
+
+def plot_history(history, title):
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+    for ax, key in zip(axes, ['loss', 'accuracy']):
+        ax.plot(history.history[key], label='train')
+        ax.plot(history.history['val_' + key], label='validation')
+        ax.set_title(f'{title} {key}')
+        ax.set_xlabel('epoch')
+        ax.legend()
+    plt.show()
+
+# %%
+model = build_mlp((256, 128), 'relu')
+model.summary()
+history = model.fit(x_tr, y_tr, validation_data=(x_val, y_val), epochs=20, batch_size=128)
+
+# %%
+plot_history(history, 'MLP')
+test_loss, test_acc = model.evaluate(x_test, y_test, verbose=0)
+print('Test accuracy:', test_acc)
+
+# %%
+results = []
+for hidden in [(128,), (256, 128), (512, 256, 128)]:
+    for activation in ['relu', 'tanh', 'sigmoid']:
+        h = build_mlp(hidden, activation).fit(x_tr, y_tr, validation_data=(x_val, y_val),
+                                              epochs=10, batch_size=128, verbose=0)
+        best = max(h.history['val_accuracy'])
+        results.append({'layers': hidden, 'activation': activation, 'best_val_acc': best})
+        print(hidden, activation, round(best, 4))
+
+pd.DataFrame(results).sort_values('best_val_acc', ascending=False)

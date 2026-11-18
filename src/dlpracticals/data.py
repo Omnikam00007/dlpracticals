@@ -5,7 +5,9 @@ Handwritten.zip, Fashion.zip, IMDB.zip, cifar (1).zip, cats_and_dogs_filtered.zi
 Each zip is extracted once into the extract folder on first use.
 """
 import glob
+import io
 import os
+import shutil
 import zipfile
 
 import numpy as np
@@ -24,6 +26,48 @@ def set_data_dir(data_dir, extract_dir=None):
 
 def get_data_dir():
     return _DATA_DIR
+
+
+def _inner_zips(source):
+    """Yield (name, ZipFile) for every dataset zip in a folder, or inside the downloaded outer zip."""
+    if os.path.isfile(source) and source.lower().endswith('.zip'):
+        outer = zipfile.ZipFile(source)
+        for name in outer.namelist():
+            if name.lower().endswith('.zip'):
+                yield os.path.basename(name), zipfile.ZipFile(io.BytesIO(outer.read(name)))
+        return
+    if not os.path.isdir(source):
+        raise FileNotFoundError(f'{source} not found. Pass the Dataset folder or the downloaded Dataset zip.')
+    for path in sorted(glob.glob(os.path.join(source, '**', '*.zip'), recursive=True)):
+        yield os.path.basename(path), zipfile.ZipFile(path)
+
+
+def prepare_data(source=None, out='data'):
+    """Extract all dataset zips into one folder and return its path.
+
+    `source` is the Dataset folder (holding Handwritten.zip, Fashion.zip, ...) or the downloaded
+    outer zip. CSV files land directly in `out` (out/mnist_train.csv, out/IMDB Dataset.csv, ...);
+    image folders keep their structure (out/cifar10/train, out/cats_and_dogs_filtered/train).
+    Zips already extracted are skipped, so calling this again is instant.
+    """
+    source = source or _DATA_DIR
+    os.makedirs(out, exist_ok=True)
+    for zip_name, archive in _inner_zips(source):
+        marker = os.path.join(out, f'.extracted_{zip_name}')
+        if os.path.exists(marker):
+            continue
+        print('Extracting', zip_name, '...')
+        with archive:
+            for member in archive.infolist():
+                name = member.filename
+                if member.is_dir() or 'ubyte' in name:
+                    continue
+                target = os.path.join(out, os.path.basename(name) if name.lower().endswith('.csv') else name)
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                with archive.open(member) as src, open(target, 'wb') as dst:
+                    shutil.copyfileobj(src, dst)
+        open(marker, 'w').close()
+    return out
 
 
 def dataset_path(zip_name, name, want_dir=False):

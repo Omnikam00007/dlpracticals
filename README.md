@@ -1,79 +1,61 @@
 # dlpracticals
 
-Deep learning practicals 1-8 as one Python library (TensorFlow / Keras).
+Deep learning practicals 1-8 (TensorFlow / Keras) that write themselves into Jupyter notebooks.
 
-| Module | Practical | Dataset |
+| # | Practical | Data file(s) used |
 |---|---|---|
-| `p1_perceptron` | 1. Perceptron from scratch (NumPy) | AND / OR / XOR + synthetic |
-| `p2_mlp` | 2. Feedforward network, tune layers and activations | Fashion.zip |
-| `p3_regularization` | 3. L2 and Dropout | Fashion.zip |
-| `p4_activations` | 4. Sigmoid / Tanh / ReLU, gradient flow | Handwritten.zip (MNIST) |
-| `p5_cnn` | 5. CNN vs MLP, data augmentation | cifar (1).zip |
-| `p6_lstm` | 6. LSTM sentiment classifier | IMDB.zip |
-| `p7_transfer` | 7. Transfer learning with ResNet50 | cats_and_dogs_filtered.zip |
-| `p8_tuning` | 8. Hyperparameter tuning + TensorBoard | Fashion.zip |
+| 1 | Perceptron from scratch (NumPy) | none |
+| 2 | Feedforward network (MLP), tune layers and activations | fashion-mnist_train/test.csv |
+| 3 | L2 and Dropout regularization | fashion-mnist_train/test.csv |
+| 4 | Sigmoid vs Tanh vs ReLU, gradient flow | mnist_train/test.csv |
+| 5 | CNN vs MLP with data augmentation | cifar10/ |
+| 6 | LSTM sentiment classification | IMDB Dataset.csv |
+| 7 | Transfer learning with ResNet50 | cats_and_dogs_filtered/ |
+| 8 | Hyperparameter tuning + TensorBoard | fashion-mnist_train/test.csv |
 
 ## Install
 
-From this folder (the one containing `pyproject.toml`):
-
 ```
-pip install -e .
+pip install git+https://github.com/omnikam00007/dlpracticals.git
 ```
 
-On Google Colab, upload the `dlpracticals` folder and run `!pip install -e /content/dlpracticals`.
-
-## Datasets
-
-Extract `Dataset-20261112T113230Z-1-001.zip` once to get the `Dataset` folder.
-Leave the inner zips as they are; each one is extracted into `./data` the first time it's needed.
-
-Tell the library where that folder is, in any one of these ways:
-- `dlpracticals.set_data_dir('path/to/Dataset')` in Python
-- `--data-dir path/to/Dataset` on the command line
-- the `DL_DATA_DIR` environment variable
-- or put the `Dataset` folder in the directory you run from (the default)
-
-## Use
-
-Run a whole practical:
+## Use in Jupyter or Colab
 
 ```python
 import dlpracticals as dp
-dp.set_data_dir('Dataset')
-dp.run_practical(2)          # or dp.p2_mlp.run()
+
+dp.prepare_data('Dataset')   # extracts every dataset zip into ./data (only the first time)
+dp.notebook(3)               # creates Practical_3.ipynb with the code split into cells
+dp.all_notebooks('notebooks')  # creates all 8 notebooks in a folder
+dp.fill(3)                   # puts practical 3's code into the next cell of the open notebook
+dp.show_code(3)              # just displays the code
+dp.show_code(3, save_to='practical3.py')
 ```
 
-```
-python -m dlpracticals 5 --data-dir Dataset
-```
+`'Dataset'` is the folder holding `Handwritten.zip`, `Fashion.zip`, `IMDB.zip`, `cifar (1).zip` and
+`cats_and_dogs_filtered.zip`. You can also pass the downloaded zip itself:
+`dp.prepare_data('Dataset-20261112T113230Z-1-001.zip')`.
 
-Display the code of a practical on screen:
+Every generated notebook starts with:
 
 ```python
-dp.show_code(1)                        # practical 1's code (syntax-highlighted in Jupyter/Colab)
-dp.show_code(5, helpers=True)          # also show the shared data.py / plots.py code
-dp.show_code(3, save_to='p3.py')       # also save it to a file you can open and edit
+import dlpracticals as dp
+DATA = dp.prepare_data('Dataset')
 ```
 
+and then reads its files from `DATA`, e.g. `pd.read_csv(f'{DATA}/fashion-mnist_train.csv')`.
+
+## Command line
+
 ```
-python -m dlpracticals show 1
-python -m dlpracticals show 5 --helpers --save p5.py
-```
-
-Or use the building blocks yourself:
-
-```python
-from dlpracticals import p1_perceptron as p1
-p = p1.Perceptron(learning_rate=0.1, epochs=20, verbose=True).fit(p1.X_GATE, p1.GATES['AND'])
-p1.plot_decision_boundary(p, p1.X_GATE, p1.GATES['AND'], 'AND')
-
-from dlpracticals import p2_mlp, data
-train, val, test = data.load_fashion()
-model = p2_mlp.build_mlp((256, 128), 'relu')
-model.fit(*train, validation_data=val, epochs=10)
+python -m dlpracticals prepare --source Dataset
+python -m dlpracticals notebook all --out notebooks
+python -m dlpracticals show 2
 ```
 
-`run()` in every module accepts the epoch counts as arguments, e.g. `dp.p5_cnn.run(epochs=5)` for a quick check.
-Practicals 5 and 7 need a GPU to finish in reasonable time; practical 7 downloads the ResNet50 weights (~100 MB) once.
-Practical 1 works without TensorFlow.
+## Notes
+
+- Practicals 5 and 7 need a GPU (Colab: Runtime -> Change runtime type -> GPU).
+- Practical 7 downloads the ResNet50 weights (~100 MB) the first time.
+- Longer versions with extra analysis are in `dlpracticals.p1_perceptron` ... `p8_tuning` (`run()` in each),
+  or `python -m dlpracticals run 3`.

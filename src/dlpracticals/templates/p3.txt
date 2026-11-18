@@ -1,0 +1,68 @@
+# %% [markdown]
+# # Practical 3: Regularization (L2 and Dropout)
+
+# %%
+import pandas as pd
+import matplotlib.pyplot as plt
+from tensorflow import keras
+from tensorflow.keras import layers, regularizers
+
+# %%
+train_df = pd.read_csv(f'{DATA}/fashion-mnist_train.csv')
+test_df = pd.read_csv(f'{DATA}/fashion-mnist_test.csv')
+
+x = train_df.iloc[:, 1:].to_numpy('float32') / 255
+y = train_df.iloc[:, 0].to_numpy()
+x_test = test_df.iloc[:, 1:].to_numpy('float32') / 255
+y_test = test_df.iloc[:, 0].to_numpy()
+
+x_tr, y_tr = x[:10000], y[:10000]
+x_val, y_val = x[50000:], y[50000:]
+
+# %%
+def build_model(l2=0.0, dropout=0.0):
+    reg = regularizers.l2(l2) if l2 > 0 else None
+    model = keras.Sequential([keras.Input(shape=(784,))])
+    for units in [512, 512, 256]:
+        model.add(layers.Dense(units, activation='relu', kernel_regularizer=reg))
+        if dropout > 0:
+            model.add(layers.Dropout(dropout))
+    model.add(layers.Dense(10, activation='softmax'))
+    model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+    return model
+
+# %%
+configs = {
+    'No regularization': (0.0, 0.0),
+    'L2': (1e-3, 0.0),
+    'Dropout': (0.0, 0.5),
+    'L2 + Dropout': (1e-4, 0.3),
+}
+
+histories, results = {}, []
+for name, (l2, dropout) in configs.items():
+    model = build_model(l2, dropout)
+    h = model.fit(x_tr, y_tr, validation_data=(x_val, y_val), epochs=40, batch_size=128, verbose=0).history
+    histories[name] = h
+    results.append({
+        'model': name,
+        'train_acc': h['accuracy'][-1],
+        'val_acc': h['val_accuracy'][-1],
+        'gap': h['accuracy'][-1] - h['val_accuracy'][-1],
+        'test_acc': model.evaluate(x_test, y_test, verbose=0)[1],
+    })
+    print(name, 'done')
+
+# %%
+fig, axes = plt.subplots(2, 4, figsize=(20, 8))
+for col, (name, h) in enumerate(histories.items()):
+    for row, key in enumerate(['loss', 'accuracy']):
+        axes[row, col].plot(h[key], label='train')
+        axes[row, col].plot(h['val_' + key], label='validation')
+        axes[row, col].set_title(f'{name} - {key}')
+        axes[row, col].legend()
+plt.tight_layout()
+plt.show()
+
+# %%
+pd.DataFrame(results).set_index('model').round(4)

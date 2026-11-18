@@ -1,0 +1,81 @@
+# %% [markdown]
+# # Practical 7: Transfer Learning with ResNet50 (Cats vs Dogs)
+
+# %%
+import pandas as pd
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+from tensorflow.keras.applications import ResNet50
+from tensorflow.keras.applications.resnet50 import preprocess_input
+
+# %%
+settings = dict(image_size=(224, 224), batch_size=32, label_mode='binary')
+train_ds = keras.utils.image_dataset_from_directory(f'{DATA}/cats_and_dogs_filtered/train', **settings)
+val_ds = keras.utils.image_dataset_from_directory(f'{DATA}/cats_and_dogs_filtered/validation',
+                                                  shuffle=False, **settings)
+class_names = train_ds.class_names
+
+train_ds = train_ds.cache().prefetch(tf.data.AUTOTUNE)
+val_ds = val_ds.cache().prefetch(tf.data.AUTOTUNE)
+
+# %%
+def build_model():
+    base = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+    base.trainable = False
+    inputs = keras.Input(shape=(224, 224, 3))
+    x = layers.RandomFlip('horizontal')(inputs)
+    x = preprocess_input(x)
+    x = base(x, training=False)
+    x = layers.GlobalAveragePooling2D()(x)
+    x = layers.Dropout(0.3)(x)
+    outputs = layers.Dense(1, activation='sigmoid')(x)
+    model = keras.Model(inputs, outputs)
+    model.compile(optimizer=keras.optimizers.Adam(1e-3), loss='binary_crossentropy', metrics=['accuracy'])
+    return model, base
+
+
+def unfreeze(model, base, stage):
+    base.trainable = True
+    start = next(i for i, layer in enumerate(base.layers) if layer.name.startswith(stage))
+    for i, layer in enumerate(base.layers):
+        layer.trainable = i >= start and not isinstance(layer, layers.BatchNormalization)
+    model.compile(optimizer=keras.optimizers.Adam(1e-5), loss='binary_crossentropy', metrics=['accuracy'])
+
+# %%
+experiments = {'All layers frozen': None, 'Fine-tune conv5': 'conv5', 'Fine-tune conv4 + conv5': 'conv4'}
+curves, results = {}, []
+
+for name, stage in experiments.items():
+    print('Experiment:', name)
+    model, base = build_model()
+    h1 = model.fit(train_ds, validation_data=val_ds, epochs=3, verbose=2)
+    if stage:
+        unfreeze(model, base, stage)
+    h2 = model.fit(train_ds, validation_data=val_ds, epochs=3, verbose=2)
+    curves[name] = h1.history['val_accuracy'] + h2.history['val_accuracy']
+    trainable = sum(int(tf.size(w)) for w in model.trainable_weights)
+    results.append({'experiment': name, 'trainable_params': trainable, 'val_acc': curves[name][-1]})
+
+# %%
+for name, curve in curves.items():
+    plt.plot(curve, marker='o', label=name)
+plt.axvline(2.5, color='gray', linestyle='--')
+plt.title('Validation accuracy (fine-tuning starts after the dashed line)')
+plt.xlabel('epoch')
+plt.legend()
+plt.show()
+
+pd.DataFrame(results).set_index('experiment').round(4)
+
+# %%
+images, labels = next(iter(val_ds.unbatch().shuffle(1000).batch(8)))
+probs = model.predict(images, verbose=0).ravel()
+
+fig, axes = plt.subplots(1, 8, figsize=(18, 3))
+for i, ax in enumerate(axes):
+    ax.imshow(images[i].numpy().astype('uint8'))
+    ax.set_title(f'{class_names[int(probs[i] >= 0.5)]} ({probs[i]:.2f})')
+    ax.axis('off')
+plt.show()
