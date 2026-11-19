@@ -10,8 +10,6 @@ import os
 import shutil
 import zipfile
 
-import numpy as np
-
 _DATA_DIR = os.environ.get('DL_DATA_DIR', 'Dataset')
 _EXTRACT_DIR = os.environ.get('DL_EXTRACT_DIR', 'data')
 
@@ -120,6 +118,7 @@ FASHION_CLASSES = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
 
 
 def set_seed(seed=42):
+    import numpy as np
     np.random.seed(seed)
     try:
         import tensorflow as tf

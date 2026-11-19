@@ -16,8 +16,12 @@ Deep learning practicals 1-8 (TensorFlow / Keras) that write themselves into Jup
 ## Install
 
 ```
-pip install git+https://github.com/omnikam00007/dlpracticals.git
+pip install https://github.com/Omnikam00007/dlpracticals/archive/refs/heads/main.zip
 ```
+
+This installs only the practical code (a few KB). No datasets are included and no other libraries are
+installed; the PC needs TensorFlow, pandas, matplotlib and scikit-learn already to *run* the practicals.
+To install those too: `pip install "dlpracticals[full] @ https://github.com/Omnikam00007/dlpracticals/archive/refs/heads/main.zip"`.
 
 ## Use in Jupyter or Colab
 

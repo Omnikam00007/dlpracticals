@@ -7,13 +7,10 @@ name = "dlpracticals"
 version = "1.1.0"
 description = "Deep learning practicals 1-8: perceptron, MLP, regularization, activations, CNN, LSTM, transfer learning, hyperparameter tuning (TensorFlow/Keras)."
 requires-python = ">=3.9"
-dependencies = [
-    "numpy",
-    "pandas",
-    "matplotlib",
-    "scikit-learn",
-    "tensorflow>=2.12",
-]
+dependencies = []
+
+[project.optional-dependencies]
+full = ["numpy", "pandas", "matplotlib", "scikit-learn", "tensorflow>=2.12"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
